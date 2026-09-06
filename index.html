@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foundational Edge — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin.css">
+<!-- SheetJS: parses the admin's uploaded .xlsx question files client-side -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header class="admin-header">
+  <div class="wrap">
+    <div>
+      <div class="admin-logo">Foundational<span class="dot">·</span>Edge <span style="font-weight:400; opacity:0.7;">Admin</span></div>
+      <div class="admin-subtitle">Manage quizzes and questions</div>
+    </div>
+    <a href="https://foundational-edge.niting-goel.workers.dev/" target="_blank" rel="noopener" class="btn btn-ghost" style="border-color:rgba(255,255,255,0.3); color:#fff;">View public site →</a>
+  </div>
+</header>
+
+<div class="security-banner">
+  <div class="wrap">This admin site has no login — treat its URL as private. Anyone with the link can create, edit, or retire quizzes.</div>
+</div>
+
+<main>
+  <div class="wrap">
+
+    <!-- ============ LIST SCREEN: grade filter + quiz-type sections ============ -->
+    <div id="listScreen">
+      <div class="grade-bar">
+        <div class="grade-tabs" id="gradeTabs"></div>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-primary" id="newQuizBtn">+ New quiz</button>
+      </div>
+
+      <div id="quizSections"></div>
+      <p id="listLoading" class="state-msg">Loading quizzes…</p>
+    </div>
+
+    <!-- ============ DETAIL SCREEN: manage one quiz's questions ============ -->
+    <div id="detailScreen" style="display:none;">
+      <a href="#" id="detailBackLink" class="detail-back">← Back to all quizzes</a>
+      <div class="detail-header">
+        <div>
+          <h1 class="detail-title" id="detailTitle">Quiz</h1>
+          <div class="detail-meta" id="detailMeta"></div>
+        </div>
+        <div class="quiz-card-actions">
+          <a href="#" id="detailPreviewLink" target="_blank" rel="noopener" class="btn btn-ghost">View as it will look →</a>
+          <button type="button" class="btn btn-ghost" id="detailCsvBtn">Download questions CSV</button>
+          <button type="button" class="btn btn-danger" id="detailExpireBtn">Expire this quiz</button>
+        </div>
+      </div>
+
+      <div class="storage-path-box">
+        <strong>Image path for this quiz:</strong> upload any question images to this exact folder in
+        <a href="https://supabase.com/dashboard/project/wwmbpgtddsyettfdakbe/storage/buckets/question-images" target="_blank" rel="noopener">Supabase Storage → question-images</a>,
+        then use "Set image" on the question below and paste just the filename.
+        <div class="mono" id="detailStoragePath">Quiz/…/</div>
+      </div>
+
+      <div class="upload-box">
+        <div><strong>Upload questions from Excel</strong> — columns: section, difficulty, order_num, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, image_filename (optional)</div>
+        <input type="file" id="excelInput" accept=".xlsx,.xls">
+        <p id="uploadStatus" class="upload-status"></p>
+      </div>
+
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Section</th>
+            <th>Question</th>
+            <th>Correct</th>
+            <th>Image</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="questionsTableBody"></tbody>
+      </table>
+      <p id="questionsEmpty" class="state-msg" style="display:none;">No questions yet — upload an Excel file above.</p>
+      <p id="detailLoading" class="state-msg">Loading questions…</p>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============ MODAL: create new quiz ============ -->
+<div class="modal-backdrop" id="newQuizModal">
+  <div class="modal">
+    <button type="button" class="modal-close" id="newQuizCloseBtn">&times;</button>
+    <h2>Create a new quiz</h2>
+    <p class="modal-sub">You'll add questions (via Excel upload) on the next screen.</p>
+    <form id="newQuizForm">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Grade</label>
+          <select id="nqGrade" required>
+            <option value="3">Grade 3</option>
+            <option value="4">Grade 4</option>
+            <option value="5">Grade 5</option>
+            <option value="6">Grade 6</option>
+            <option value="7">Grade 7</option>
+            <option value="8">Grade 8</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Quiz type</label>
+          <select id="nqType" required>
+            <option value="Free-Skill-Test">Free Skill Test</option>
+            <option value="Weekly-Practice">Weekly Practice</option>
+            <option value="Monthly-Competition">Monthly Competition</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Skill focus</label>
+          <select id="nqSkill" required>
+            <option value="all">All</option>
+            <option value="verbal">Verbal</option>
+            <option value="reasoning">Reasoning</option>
+            <option value="maths">Maths</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Max attempts</label>
+          <input type="number" id="nqMaxAttempts" min="1" value="3" required>
+        </div>
+        <div class="form-field">
+          <label>Publish date</label>
+          <input type="date" id="nqPublishDate" required>
+        </div>
+        <div class="form-field">
+          <label>Expiry date <span style="font-weight:400; color:var(--ink-soft);">(optional)</span></label>
+          <input type="date" id="nqExpiryDate">
+        </div>
+      </div>
+      <div class="form-grid full">
+        <div class="form-field">
+          <label>Title <span style="font-weight:400; color:var(--ink-soft);">(optional, for your reference)</span></label>
+          <input type="text" id="nqTitle" placeholder="e.g. Grade 5 Free Skill Check — Sep 2026">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="newQuizCancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="newQuizSubmitBtn">Create quiz →</button>
+      </div>
+      <p class="form-error" id="newQuizError"></p>
+    </form>
+  </div>
+</div>
+
+<script src="js/admin.js"></script>
+</body>
+</html>
