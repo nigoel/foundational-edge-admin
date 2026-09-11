@@ -38,17 +38,20 @@ var QUIZ_TYPES = [
 var currentGrade = '4';
 var currentQuizzes = []; // last-loaded list for currentGrade
 
+function gradeLabel(g){ return g === 'K' ? 'Kindergarten' : 'Grade ' + g; }
+
 // =====================================================================
 // GRADE TABS
 // =====================================================================
 function renderGradeTabs(){
   var bar = document.getElementById('gradeTabs');
   bar.innerHTML = '';
-  ['3','4','5','6','7','8'].forEach(function(g){
+  var labels = { K: 'Kindergarten' };
+  ['K','1','2','3','4','5','6','7','8'].forEach(function(g){
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'grade-tab' + (g === currentGrade ? ' active' : '');
-    btn.textContent = 'Grade ' + g;
+    btn.textContent = labels[g] || ('Grade ' + g);
     btn.addEventListener('click', function(){
       currentGrade = g;
       renderGradeTabs();
@@ -140,7 +143,7 @@ function renderQuizCard(quiz){
 
   var title = document.createElement('div');
   title.className = 'quiz-card-title';
-  title.textContent = quiz.title || ('Untitled — Grade ' + quiz.grade + ' ' + quiz.quiz_type);
+  title.textContent = quiz.title || ('Untitled — ' + gradeLabel(quiz.grade) + ' ' + quiz.quiz_type);
   main.appendChild(title);
 
   var meta = document.createElement('div');
@@ -329,9 +332,9 @@ function showDetailScreen(quiz){
   document.getElementById('listScreen').style.display = 'none';
   document.getElementById('detailScreen').style.display = '';
 
-  document.getElementById('detailTitle').textContent = quiz.title || ('Grade ' + quiz.grade + ' ' + quiz.quiz_type);
+  document.getElementById('detailTitle').textContent = quiz.title || (gradeLabel(quiz.grade) + ' ' + quiz.quiz_type);
   document.getElementById('detailMeta').textContent =
-    'Grade ' + quiz.grade + ' · ' + quiz.quiz_type + ' · Published ' + formatDate(quiz.publish_date) +
+    gradeLabel(quiz.grade) + ' · ' + quiz.quiz_type + ' · Published ' + formatDate(quiz.publish_date) +
     (quiz.expiry_date ? ' · Expires ' + formatDate(quiz.expiry_date) : '') + ' · Max ' + quiz.max_attempts + ' attempts';
   document.getElementById('detailPreviewLink').href = previewUrl(quiz);
   document.getElementById('detailStoragePath').textContent = 'Quiz/' + quiz.id + '/';
