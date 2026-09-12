@@ -11,7 +11,10 @@ var RPC = {
   expireQuiz: SUPABASE_URL + '/rest/v1/rpc/admin_expire_quiz',
   getQuestions: SUPABASE_URL + '/rest/v1/rpc/admin_get_questions',
   bulkInsertQuestions: SUPABASE_URL + '/rest/v1/rpc/admin_bulk_insert_questions',
-  setQuestionImage: SUPABASE_URL + '/rest/v1/rpc/admin_set_question_image'
+  setQuestionImage: SUPABASE_URL + '/rest/v1/rpc/admin_set_question_image',
+  getAssignments: SUPABASE_URL + '/rest/v1/rpc/admin_get_assignments',
+  getEligibleRegistrations: SUPABASE_URL + '/rest/v1/rpc/admin_get_eligible_registrations',
+  assignQuiz: SUPABASE_URL + '/rest/v1/rpc/admin_assign_quiz'
 };
 
 function supabaseRpc(url, body){
@@ -189,6 +192,13 @@ function renderQuizCard(quiz){
   manageBtn.textContent = 'Manage questions';
   manageBtn.addEventListener('click', function(){ showDetailScreen(quiz); });
   actions.appendChild(manageBtn);
+
+  var assignBtn = document.createElement('button');
+  assignBtn.type = 'button';
+  assignBtn.className = 'btn btn-ghost btn-sm';
+  assignBtn.textContent = 'Assignments';
+  assignBtn.addEventListener('click', function(){ showAssignmentsScreen(quiz); });
+  actions.appendChild(assignBtn);
 
   if(status.cls !== 'retired'){
     var expireBtn = document.createElement('button');
@@ -567,6 +577,199 @@ document.getElementById('excelInput').addEventListener('change', function(e){
   };
   reader.readAsArrayBuffer(file);
 });
+
+// =====================================================================
+// ASSIGNMENTS SCREEN (which kids this quiz is assigned to)
+// =====================================================================
+var assignmentsQuiz = null;
+var currentAssignments = [];
+var currentEligible = [];
+var assignmentFilter = 'all';
+var selectedEligibleIds = {};
+
+function showAssignmentsScreen(quiz){
+  assignmentsQuiz = quiz;
+  assignmentFilter = 'all';
+  selectedEligibleIds = {};
+  document.querySelectorAll('#assignmentFilterTabs .filter-tab').forEach(function(t){
+    t.classList.toggle('active', t.dataset.filter === 'all');
+  });
+
+  document.getElementById('listScreen').style.display = 'none';
+  document.getElementById('detailScreen').style.display = 'none';
+  document.getElementById('assignmentsScreen').style.display = '';
+
+  document.getElementById('assignmentsTitle').textContent = quiz.title || (gradeLabel(quiz.grade) + ' ' + quiz.quiz_type);
+  document.getElementById('assignmentsMeta').textContent = gradeLabel(quiz.grade) + ' · ' + quiz.quiz_type;
+
+  loadAssignmentsAndEligible();
+}
+
+document.getElementById('assignmentsBackLink').addEventListener('click', function(e){
+  e.preventDefault();
+  document.getElementById('assignmentsScreen').style.display = 'none';
+  document.getElementById('listScreen').style.display = '';
+  loadQuizzes();
+});
+
+function loadAssignmentsAndEligible(){
+  document.getElementById('assignmentsTableBody').innerHTML = '';
+  document.getElementById('eligibleTableBody').innerHTML = '';
+  document.getElementById('assignmentsEmpty').style.display = 'none';
+  document.getElementById('eligibleEmpty').style.display = 'none';
+  document.getElementById('assignmentsLoading').style.display = '';
+
+  Promise.all([
+    supabaseRpc(RPC.getAssignments, { p_quiz_id: assignmentsQuiz.id }),
+    supabaseRpc(RPC.getEligibleRegistrations, { p_quiz_id: assignmentsQuiz.id })
+  ]).then(function(results){
+    currentAssignments = results[0] || [];
+    currentEligible = results[1] || [];
+    document.getElementById('assignmentsLoading').style.display = 'none';
+    document.getElementById('eligibleGradeLabel').textContent = '(Grade ' + assignmentsQuiz.grade + ')';
+    renderAssignmentsTable();
+    renderEligibleTable();
+    updateAssignSelectedButton();
+  }).catch(function(err){
+    console.error(err);
+    document.getElementById('assignmentsLoading').textContent = 'Something went wrong loading assignments. Check the console.';
+  });
+}
+
+document.querySelectorAll('#assignmentFilterTabs .filter-tab').forEach(function(tab){
+  tab.addEventListener('click', function(){
+    document.querySelectorAll('#assignmentFilterTabs .filter-tab').forEach(function(t){ t.classList.remove('active'); });
+    tab.classList.add('active');
+    assignmentFilter = tab.dataset.filter;
+    renderAssignmentsTable();
+  });
+});
+
+function renderAssignmentsTable(){
+  var tbody = document.getElementById('assignmentsTableBody');
+  tbody.innerHTML = '';
+
+  var list = currentAssignments.filter(function(a){
+    if(assignmentFilter === 'completed') return a.attempts_used > 0;
+    if(assignmentFilter === 'not_attempted') return a.attempts_used === 0;
+    return true;
+  });
+
+  document.getElementById('assignmentsEmpty').style.display = list.length === 0 ? '' : 'none';
+
+  list.forEach(function(a){
+    var tr = document.createElement('tr');
+
+    var tdName = document.createElement('td');
+    tdName.textContent = a.child_name;
+    tr.appendChild(tdName);
+
+    var tdParent = document.createElement('td');
+    tdParent.textContent = a.parent_name || '—';
+    tr.appendChild(tdParent);
+
+    var tdWhatsapp = document.createElement('td');
+    tdWhatsapp.className = 'mono';
+    tdWhatsapp.textContent = a.whatsapp || '—';
+    tr.appendChild(tdWhatsapp);
+
+    var tdStatus = document.createElement('td');
+    var pill = document.createElement('span');
+    if(a.attempts_used > 0){
+      pill.className = 'status-pill completed';
+      pill.textContent = 'Completed' + (a.latest_score != null ? ' · ' + a.latest_score + '/' + a.latest_total : '');
+    } else {
+      pill.className = 'status-pill pending';
+      pill.textContent = 'Not attempted';
+    }
+    tdStatus.appendChild(pill);
+    tr.appendChild(tdStatus);
+
+    tbody.appendChild(tr);
+  });
+}
+
+function renderEligibleTable(){
+  var tbody = document.getElementById('eligibleTableBody');
+  tbody.innerHTML = '';
+
+  document.getElementById('eligibleEmpty').style.display = currentEligible.length === 0 ? '' : 'none';
+  document.getElementById('selectAllEligible').disabled = currentEligible.length === 0;
+  var allSelected = currentEligible.length > 0 && currentEligible.every(function(r){ return !!selectedEligibleIds[r.reg_id]; });
+  document.getElementById('selectAllEligible').checked = allSelected;
+
+  currentEligible.forEach(function(r){
+    var tr = document.createElement('tr');
+
+    var tdCheck = document.createElement('td');
+    var checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !!selectedEligibleIds[r.reg_id];
+    checkbox.addEventListener('change', function(){
+      if(checkbox.checked) selectedEligibleIds[r.reg_id] = true;
+      else delete selectedEligibleIds[r.reg_id];
+      updateAssignSelectedButton();
+    });
+    tdCheck.appendChild(checkbox);
+    tr.appendChild(tdCheck);
+
+    var tdName = document.createElement('td');
+    tdName.textContent = r.child_name;
+    tr.appendChild(tdName);
+
+    var tdParent = document.createElement('td');
+    tdParent.textContent = r.parent_name || '—';
+    tr.appendChild(tdParent);
+
+    var tdWhatsapp = document.createElement('td');
+    tdWhatsapp.className = 'mono';
+    tdWhatsapp.textContent = r.whatsapp || '—';
+    tr.appendChild(tdWhatsapp);
+
+    var tdAction = document.createElement('td');
+    var assignOneBtn = document.createElement('button');
+    assignOneBtn.type = 'button';
+    assignOneBtn.className = 'btn btn-ghost btn-sm';
+    assignOneBtn.textContent = 'Assign';
+    assignOneBtn.addEventListener('click', function(){ assignRegIds([r.reg_id]); });
+    tdAction.appendChild(assignOneBtn);
+    tr.appendChild(tdAction);
+
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('selectAllEligible').addEventListener('change', function(){
+  var checked = this.checked;
+  selectedEligibleIds = {};
+  if(checked){
+    currentEligible.forEach(function(r){ selectedEligibleIds[r.reg_id] = true; });
+  }
+  renderEligibleTable();
+  updateAssignSelectedButton();
+});
+
+function updateAssignSelectedButton(){
+  var n = Object.keys(selectedEligibleIds).length;
+  var btn = document.getElementById('assignSelectedBtn');
+  btn.textContent = 'Assign selected (' + n + ')';
+  btn.disabled = n === 0;
+}
+
+document.getElementById('assignSelectedBtn').addEventListener('click', function(){
+  assignRegIds(Object.keys(selectedEligibleIds));
+});
+
+function assignRegIds(regIds){
+  if(!regIds.length) return;
+  supabaseRpc(RPC.assignQuiz, { p_quiz_id: assignmentsQuiz.id, p_reg_ids: regIds }).then(function(){
+    selectedEligibleIds = {};
+    loadAssignmentsAndEligible();
+  }).catch(function(err){
+    console.error(err);
+    window.alert('Something went wrong assigning. Check the console and try again.');
+  });
+}
 
 // =====================================================================
 // INIT
