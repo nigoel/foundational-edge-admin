@@ -88,6 +88,49 @@
       <p id="detailLoading" class="state-msg">Loading questions…</p>
     </div>
 
+    <!-- ============ ASSIGNMENTS SCREEN: who this quiz is assigned to ============ -->
+    <div id="assignmentsScreen" style="display:none;">
+      <a href="#" id="assignmentsBackLink" class="detail-back">← Back to all quizzes</a>
+      <div class="detail-header">
+        <div>
+          <h1 class="detail-title" id="assignmentsTitle">Quiz</h1>
+          <div class="detail-meta" id="assignmentsMeta"></div>
+        </div>
+      </div>
+
+      <div class="assign-section">
+        <div class="assign-section-head">
+          <h2>Current assignments</h2>
+          <div class="filter-tabs" id="assignmentFilterTabs">
+            <button type="button" class="filter-tab active" data-filter="all">All</button>
+            <button type="button" class="filter-tab" data-filter="completed">Completed</button>
+            <button type="button" class="filter-tab" data-filter="not_attempted">Not attempted</button>
+          </div>
+        </div>
+        <table class="q-table">
+          <thead><tr><th>Child</th><th>Parent</th><th>WhatsApp</th><th>Status</th></tr></thead>
+          <tbody id="assignmentsTableBody"></tbody>
+        </table>
+        <p id="assignmentsEmpty" class="state-msg" style="display:none;">No one matches this filter yet.</p>
+        <p id="assignmentsLoading" class="state-msg">Loading assignments…</p>
+      </div>
+
+      <div class="assign-section">
+        <div class="assign-section-head">
+          <h2>Assign more kids <span class="assign-grade-label" id="eligibleGradeLabel"></span></h2>
+          <div class="picker-actions">
+            <label class="select-all-label"><input type="checkbox" id="selectAllEligible"> Select all</label>
+            <button type="button" class="btn btn-primary btn-sm" id="assignSelectedBtn" disabled>Assign selected (0)</button>
+          </div>
+        </div>
+        <table class="q-table">
+          <thead><tr><th></th><th>Child</th><th>Parent</th><th>WhatsApp</th><th></th></tr></thead>
+          <tbody id="eligibleTableBody"></tbody>
+        </table>
+        <p id="eligibleEmpty" class="state-msg" style="display:none;">Every registered child in this grade is already assigned.</p>
+      </div>
+    </div>
+
   </div>
 </main>
 

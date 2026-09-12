@@ -32,6 +32,10 @@ Run `SETUP_ADMIN.sql` in the Supabase SQL editor for project
 already run (this depends on the `quizzes`/`questions`/`quiz_attempts`
 schema it creates).
 
+For the assignments feature (see below), also run `SETUP_ADMIN_ASSIGNMENTS.sql`
+**after** the main site's `SETUP_CHILD_ASSIGNMENTS.sql` has run (that's
+where the `assignments` table itself comes from).
+
 ## Deploying
 
 This is a static site — same deployment pattern as the public
@@ -49,8 +53,18 @@ at this repo, serving the files as-is). No build step.
   via `previewQuizId` on the public site — works even for a draft or
   retired quiz, not just whichever one the site currently picks as
   "active" for that grade), **Download CSV** (full question + answer key
-  export), **Manage questions**, **Expire** (soft-delete — sets `active =
-  false`; past attempts and the quiz's history stay intact).
+  export), **Manage questions**, **Assignments** (see below), **Expire**
+  (soft-delete — sets `active = false`; past attempts and the quiz's
+  history stay intact).
+- **Assignments screen**: who's currently assigned to this quiz (child
+  name, parent, WhatsApp, and completed/not-attempted status with their
+  latest score), filterable by **All / Completed / Not attempted**. Below
+  that, every registered child in the quiz's own grade who *isn't* already
+  assigned — check individual boxes and **Assign selected**, or use each
+  row's own **Assign** button for one at a time. Note: this is layered on
+  top of the main site's existing grade-wide broadcast model (every quiz
+  is already shown to its whole grade) — assigning here targets specific
+  kids individually, in addition to that.
 - **+ New quiz** — a form for grade, quiz type, skill focus, max
   attempts, publish/expiry dates, and an optional title. Creating one
   drops you straight into its (empty) question list.
